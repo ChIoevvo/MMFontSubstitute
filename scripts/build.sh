@@ -112,7 +112,7 @@ Description: 全局字体替换：所有 App（包括写死字体的 App）统�
 Maintainer: YG
 Author: YG
 Section: Tweaks
-Depends: mobilesubstrate | ellekit
+Depends: firmware (>= 14.0)
 Installed-Size: ${installed}
 EOF
 
