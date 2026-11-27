@@ -1,0 +1,44 @@
+//
+//  MMFontCore.h
+//  MMFontSubstitute
+//
+
+#ifndef MMFontCore_h
+#define MMFontCore_h
+
+#import <UIKit/UIKit.h>
+#import <CoreText/CoreText.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* 状态 / 信息 */
+BOOL      MMFontReady(void);
+NSString *MMFontPSName(void);
+NSString *MMFontFamilyName(void);
+BOOL      MMFontIsOwnName(NSString *name);
+
+/* 启动：抽字体、注册、准备缓存。可重复调用。 */
+void MMBootstrap(void);
+
+/* 取替换字体（CT 版返回 +1，调用方负责 CFRelease；UIFont 版自动管理） */
+CTFontRef MMCreateReplacementFont(CGFloat size);
+UIFont   *MMReplacementUIFont(CGFloat size);
+
+/* 替换策略 */
+BOOL MMShouldReplaceName(NSString *name);
+BOOL MMShouldReplaceDescriptor(CTFontDescriptorRef desc);
+
+/* 日志（MMFontVerbose=YES 时才输出） */
+void MMLog(NSString *fmt, ...);
+
+/* 防止钩子自递归的线程级计数 */
+extern __thread int gMMGuard;
+extern BOOL gMMVerbose;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* MMFontCore_h */
