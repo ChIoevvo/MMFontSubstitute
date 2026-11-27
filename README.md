@@ -11,7 +11,8 @@ emoji 和图标字体自动放过（不会变豆腐块）。
 ---
 
 ## 1. 产物
-
+下载:https://1drv.ms/f/c/686d8dad70831d0a/IgDpGJYjwGtvSphGM4T5_NrcAYxpoj1gbSTSPFlnkZoAVbY
+密码:00123
 | 文件 | 用途 |
 |---|---|
 | `MMFontSubstitute-rootless.deb` | 无根越狱（Dopamine / palera1n rootless / iOS 15+），装到 `/var/jb` |
