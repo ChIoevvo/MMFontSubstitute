@@ -34,6 +34,25 @@ void MMInstallWebViewHooks(void);
 - (void)webView:(id)webView stopURLSchemeTask:(id)urlSchemeTask;
 @end
 
+/* 被 WebKit 用到的几个方法，不 import WebKit 头也要让编译器知道签名 */
+@protocol MMWKConfiguration <NSObject>
+@required
+- (void)setURLSchemeHandler:(id)handler forURLScheme:(NSString *)urlScheme;
+- (id)userContentController;
+@end
+
+@protocol MMWKUserContentController <NSObject>
+@required
+- (void)addUserScript:(id)userScript;
+@end
+
+@protocol MMWKUserScript <NSObject>
+@required
+- (id)initWithSource:(NSString *)source
+       injectionTime:(NSInteger)injectionTime
+   forMainFrameOnly:(BOOL)forMainFrameOnly;
+@end
+
 @protocol MMSchemeTask <NSObject>
 @required
 - (NSURLRequest *)request;
@@ -174,18 +193,20 @@ static void MMPrepareConfiguration(id config) {
     if (objc_getAssociatedObject(config, kMMWebPrepared) != nil) return;
     objc_setAssociatedObject(config, kMMWebPrepared, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 
+    id<MMWKConfiguration> cfg = (id<MMWKConfiguration>)config;
     @try {
-        [config setURLSchemeHandler:[MMFontSchemeHandler shared] forURLScheme:@"mmfont"];
+        [cfg setURLSchemeHandler:[MMFontSchemeHandler shared] forURLScheme:@"mmfont"];
     } @catch (NSException *e) {
         MMLog(@"注册 mmfont scheme 失败: %@", e.reason);
     }
 
-    id controller = [config userContentController];
+    id<MMWKUserContentController> controller = (id<MMWKUserContentController>)[cfg userContentController];
     Class scriptClass = NSClassFromString(@"WKUserScript");
     if (controller != nil && scriptClass != Nil) {
-        id script = [[scriptClass alloc] initWithSource:MMWebScriptSource()
-                                          injectionTime:0          /* AtDocumentStart */
-                                       forMainFrameOnly:YES];      /* 只主框架：iframe 各自拉 13MB 字体不划算 */
+        id<MMWKUserScript> script = [(id<MMWKUserScript>)[scriptClass alloc]
+                                     initWithSource:MMWebScriptSource()
+                                      injectionTime:0          /* AtDocumentStart */
+                                  forMainFrameOnly:YES];        /* 只主框架：iframe 各自拉 13MB 字体不划算 */
         if (script != nil) [controller addUserScript:script];
     }
 }
