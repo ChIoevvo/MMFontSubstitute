@@ -195,7 +195,8 @@ static NSString *MMEnsureFontFile(void) {
         return path;
     }
 
-    NSData *data = [NSData dataWithBytes:bytes length:len];
+    /* 不复制这 13MB：直接引用 dylib 里映射的只读页写盘 */
+    NSData *data = [NSData dataWithBytesNoCopy:(void *)bytes length:len freeWhenDone:NO];
     if ([data writeToFile:path atomically:YES]) {
         MMLog(@"字体从 dylib 落盘 -> %@ (%lu bytes)", path, (unsigned long)len);
         return path;
