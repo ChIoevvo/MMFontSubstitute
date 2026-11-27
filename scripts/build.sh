@@ -12,7 +12,7 @@ cd "$ROOT"
 
 NAME="MMFontSubstitute"
 PKG="com.yg.mmfontsubstitute"
-VERSION="2.0.0"
+VERSION="2.1.0"
 MIN_IOS="15.0"
 
 log() { printf '\033[1;36m==> %s\033[0m\n' "$*"; }
@@ -63,7 +63,7 @@ LDFLAGS=(
 log "编译 dylib"
 clang "${CFLAGS[@]}" "${LDFLAGS[@]}" "${LIBS[@]}" \
   -o "build/${NAME}.dylib" \
-  src/MMFontCore.m src/MMFontHooks.m src/MMFontEntry.m
+  src/MMFontCore.m src/MMFontHooks.m src/MMFontWeb.m src/MMFontEntry.m
 
 # ---------- 签名 ----------
 if command -v ldid >/dev/null 2>&1; then

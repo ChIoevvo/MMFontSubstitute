@@ -39,7 +39,16 @@ App 拿字体只有两条路，两条都接管：
 `CTFontCreateCopyWithFamily` / `CTFontCreateForString`。
 SwiftUI、Flutter/Skia、Unity、游戏引擎、PDF 排版走的是这一层，只钩 UIFont 对它们无效。
 
-**③ 字体枚举层**
+**③ WebView 层**（`src/MMFontWeb.m`，2.1.0 起）
+
+网页文字在独立的 WebContent 进程排版，主进程的字体钩子够不着，所以换一条路：
+
+- 给每个 `WKWebViewConfiguration` 注册自定义 scheme `mmfont://`，把 dylib 里内嵌的字体字节直接喂给 web 进程（不落盘、不做 18MB base64）；
+- 注入 `documentStart` 用户脚本（主框架 + iframe）：用 CSSOM 把 `"MMFontWeb"` 插到每个有文字元素的**原有 font-family 栈最前面**。
+- 因为是"插到最前面"而不是"替换"，图标字体（FontAwesome 等）、emoji 仍然按原字体回落，不会变方块；站点动态插入的内容由 `MutationObserver` 补扫。
+- 不链接 `WebKit.framework`，全用 `NSClassFromString` + 运行时交换，没用 WebView 的 App 不白扛框架。
+
+**④ 字体枚举层**
 `+[UIFont familyNames]`、`+fontNamesForFamilyName:`、
 `CTFontManagerCopyAvailableFontFamilyNames/PostScriptNames` 里补上本字体，
 App 的「字体列表 / 字体选择器」能识别到它。
@@ -113,7 +122,8 @@ defaults write <bundleid> MMFontVerbose  -bool YES   # 控制台看 [MMFont] 日
 
 ## 7. 已知边界
 
-- **WKWebView 里的网页**：网页文字在独立的 WebContent 进程渲染，本插件不注入那个进程，网页按自己的 CSS 走（多数网页用 `-apple-system`，会跟随系统字体，但不等同于本替换）。
+- **网页**：WKWebView（含 Safari 本体）已覆盖；`SFSafariViewController` / 第三方 App 内的"独立浏览器进程"不在本进程内，覆盖不到。
+- **严格 CSP 的站点**：某些站点用 `Content-Security-Policy: font-src` 限制字体来源，`mmfont://` 会被拦，此时该页回落成原字体（不会崩、不会豆腐）。
 - **App 用图片/位图字体**（游戏内嵌 bitmap font、自定义渲染管线）：与字体无关，换不了。
 - **字体度量差异**：目标字体行高/字宽与苹方不同，个别紧凑布局会出现轻微挤压或截断，属正常现象。
 - 系统 App（设置、SpringBoard）同样被替换；如果某版系统界面出现异常，用 `MMFontDisabled` 或在 `/Library/MobileSubstrate/DynamicLibraries` 里改名停用。
@@ -127,6 +137,7 @@ defaults write <bundleid> MMFontVerbose  -bool YES   # 控制台看 [MMFont] 日
 ├── src/MMFontConfig.h            策略开关（全换/保留等宽/字体列表注入/跳过名单）
 ├── src/MMFontCore.h/.m           取字体、注册、策略、字体构造、缓存
 ├── src/MMFontHooks.m             UIFont + CoreText 两层钩子
+├── src/MMFontWeb.m               WKWebView 网页字体（scheme + 注入脚本）
 ├── src/MMFontEntry.m             dylib 构造函数入口
 ├── packaging/MMFontSubstitute.plist   注入范围（Mode = Any，全进程）
 ├── scripts/build.sh              编译 + 签名 + 打 deb

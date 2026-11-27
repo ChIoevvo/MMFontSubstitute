@@ -9,6 +9,7 @@
 
 void MMInstallUIKitHooks(void);
 void MMInstallCoreTextHooks(void);
+void MMInstallWebViewHooks(void);
 
 __attribute__((constructor))
 static void MMFontSubstituteInit(void) {
@@ -17,5 +18,6 @@ static void MMFontSubstituteInit(void) {
         if (!MMFontReady()) return;
         MMInstallUIKitHooks();
         MMInstallCoreTextHooks();
+        MMInstallWebViewHooks();
     }
 }

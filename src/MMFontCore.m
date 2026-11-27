@@ -165,6 +165,19 @@ static const uint8_t *MMEmbeddedFontData(size_t *outLen) {
     return NULL;
 }
 
+NSData *MMFontEmbeddedData(void) {
+    static NSData *data = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        size_t len = 0;
+        const uint8_t *bytes = MMEmbeddedFontData(&len);
+        if (bytes != NULL && len > 4096) {
+            data = [NSData dataWithBytesNoCopy:(void *)bytes length:len freeWhenDone:NO];
+        }
+    });
+    return data;
+}
+
 static NSString *MMEnsureFontFile(void) {
     NSFileManager *fm = [NSFileManager defaultManager];
     for (NSString *p in MM_FONT_SYSTEM_PATHS) {

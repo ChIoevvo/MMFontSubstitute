@@ -22,6 +22,9 @@ BOOL      MMFontIsOwnName(NSString *name);
 /* 启动：抽字体、注册、准备缓存。可重复调用。 */
 void MMBootstrap(void);
 
+/* 内嵌字体原始字节（不复制，直接引用 __DATA,__mmfont 映射页；WebView 用） */
+NSData   *MMFontEmbeddedData(void);
+
 /* 取替换字体（CT 版返回 +1，调用方负责 CFRelease；UIFont 版自动管理） */
 CTFontRef MMCreateReplacementFont(CGFloat size);
 UIFont   *MMReplacementUIFont(CGFloat size);
