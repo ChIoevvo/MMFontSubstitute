@@ -98,6 +98,43 @@ BOOL MMShouldReplaceDescriptor(CTFontDescriptorRef desc) {
     return YES;
 }
 
+/* 热路径：CoreText 每次排版都会问 CTFontCreateForString，
+   按字体指针缓存结论，避免每次分配 PS 名字符串 + 扫跳过表。 */
+#define MM_FONT_CACHE_SLOTS 16
+static CTFontRef gFontSlot[MM_FONT_CACHE_SLOTS];
+static uint8_t   gFontSlotAct[MM_FONT_CACHE_SLOTS];
+static int       gFontSlotNext = 0;
+
+BOOL MMFontShouldReplaceFont(CTFontRef font) {
+    if (!gReady || font == NULL) return NO;
+
+    os_unfair_lock_lock(&gLock);
+    for (int i = 0; i < MM_FONT_CACHE_SLOTS; i++) {
+        if (gFontSlot[i] == font) {
+            BOOL act = (gFontSlotAct[i] != 0);
+            os_unfair_lock_unlock(&gLock);
+            return act;
+        }
+    }
+    os_unfair_lock_unlock(&gLock);
+
+    BOOL act = NO;
+    CFStringRef ps = CTFontCopyPostScriptName(font);
+    if (ps != NULL) {
+        act = MMShouldReplaceName((__bridge NSString *)ps);
+        CFRelease(ps);
+    }
+
+    os_unfair_lock_lock(&gLock);
+    int slot = gFontSlotNext % MM_FONT_CACHE_SLOTS;
+    gFontSlotNext++;
+    if (gFontSlot[slot] != NULL) CFRelease(gFontSlot[slot]);
+    gFontSlot[slot] = (CTFontRef)CFRetain(font);
+    gFontSlotAct[slot] = act ? 1 : 0;
+    os_unfair_lock_unlock(&gLock);
+    return act;
+}
+
 #pragma mark - 从 dylib 里取字体
 
 /* 在自身 Mach-O 里找 __DATA,__mmfont 段（构建时 -sectcreate 塞进去的 ttf）。*/

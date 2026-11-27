@@ -137,7 +137,10 @@ static UIFont *mm_fontWithName(id self, SEL _cmd, NSString *name, CGFloat size) 
 
 static UIFont *mm_fontWithDescriptor(id self, SEL _cmd, UIFontDescriptor *desc, CGFloat size) {
     if (MMShouldReplaceUIFontDescriptor(desc)) {
-        MM_RETURN_REPLACEMENT(size);
+        CGFloat s = size;
+        if (s <= 0.0 && desc != nil) s = desc.pointSize;
+        if (s <= 0.0) s = 17.0;
+        MM_RETURN_REPLACEMENT(s);
     }
     return orig_fontWithDescriptor(self, _cmd, desc, size);
 }
@@ -263,15 +266,6 @@ static CTFontRef (*orig_CTFontCreateForString)(CTFontRef, CFStringRef, CFRange);
 static CFArrayRef (*orig_CTFontManagerCopyAvailableFontFamilyNames)(void);
 static CFArrayRef (*orig_CTFontManagerCopyAvailablePostScriptNames)(void);
 
-static BOOL MMIsOwnFont(CTFontRef font) {
-    if (font == NULL) return NO;
-    CFStringRef ps = CTFontCopyPostScriptName(font);
-    if (ps == NULL) return NO;
-    BOOL own = (CFStringCompare(ps, (__bridge CFStringRef)MMFontPSName(), 0) == kCFCompareEqualTo);
-    CFRelease(ps);
-    return own;
-}
-
 static BOOL MMCoversString(CTFontRef font, CFStringRef string, CFRange range) {
     if (font == NULL || string == NULL || range.length <= 0) return NO;
     CFIndex n = range.length > 64 ? 64 : range.length;
@@ -328,20 +322,10 @@ static CTFontRef mm_CTFontCreateWithFontDescriptor(CTFontDescriptorRef desc, CGF
 static CTFontRef mm_CTFontCreateCopyWithAttributes(CTFontRef font, CGFloat size,
                                                    const CGAffineTransform *matrix,
                                                    CTFontDescriptorRef attributes) {
-    if (gMMGuard == 0 && font != NULL) {
-        BOOL replace = MMIsOwnFont(font);
-        if (!replace) {
-            CFStringRef ps = CTFontCopyPostScriptName(font);
-            if (ps != NULL) {
-                replace = MMShouldReplaceName((__bridge NSString *)ps);
-                CFRelease(ps);
-            }
-        }
-        if (replace) {
-            CGFloat s = (size > 0.0) ? size : CTFontGetSize(font);
-            CTFontRef f = MMCreateReplacementFont(s);
-            if (f != NULL) return f;
-        }
+    if (gMMGuard == 0 && MMFontShouldReplaceFont(font)) {
+        CGFloat s = (size > 0.0) ? size : CTFontGetSize(font);
+        CTFontRef f = MMCreateReplacementFont(s);
+        if (f != NULL) return f;
     }
     return orig_CTFontCreateCopyWithAttributes(font, size, matrix, attributes);
 }
@@ -358,19 +342,14 @@ static CTFontRef mm_CTFontCreateCopyWithFamily(CTFontRef font, CGFloat size,
 }
 
 static CTFontRef mm_CTFontCreateForString(CTFontRef base, CFStringRef string, CFRange range) {
-    if (gMMGuard == 0 && base != NULL && string != NULL && range.length > 0) {
-        BOOL own = MMIsOwnFont(base);
-        CFStringRef ps = CTFontCopyPostScriptName(base);
-        BOOL skip = (ps != NULL) ? !MMShouldReplaceName((__bridge NSString *)ps) : YES;
-        if (ps != NULL) CFRelease(ps);
-
-        if (!own && !skip) {
-            /* base 是被我们换掉之前的旧系统字体，且这段文字本字体有字形，就直接给本字体 */
-            CTFontRef cand = MMCreateReplacementFont(CTFontGetSize(base));
-            if (cand != NULL) {
-                if (MMCoversString(cand, string, range)) return cand;
-                CFRelease(cand);
-            }
+    if (gMMGuard == 0 && base != NULL && string != NULL && range.length > 0 &&
+        MMFontShouldReplaceFont(base)) {
+        /* base 是还没被换掉的系统/App 字体；这段文字本字体有字形就直接给本字体，
+           缺字（emoji、生僻符号）则交回系统级联，避免豆腐块。 */
+        CTFontRef cand = MMCreateReplacementFont(CTFontGetSize(base));
+        if (cand != NULL) {
+            if (MMCoversString(cand, string, range)) return cand;
+            CFRelease(cand);
         }
     }
     return orig_CTFontCreateForString(base, string, range);

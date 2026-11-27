@@ -116,7 +116,7 @@ Depends: mobilesubstrate | ellekit
 Installed-Size: ${installed}
 EOF
 
-  dpkg-deb -Zgzip --build "$root" "out/${outfile}"
+  dpkg-deb --root-owner-group -Zgzip --build "$root" "out/${outfile}"
   log "已生成 out/${outfile}"
 }
 

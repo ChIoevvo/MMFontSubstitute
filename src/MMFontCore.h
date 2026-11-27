@@ -29,6 +29,8 @@ UIFont   *MMReplacementUIFont(CGFloat size);
 /* 替换策略 */
 BOOL MMShouldReplaceName(NSString *name);
 BOOL MMShouldReplaceDescriptor(CTFontDescriptorRef desc);
+/* 某个已存在的 CTFont 是否该被换掉（带指针级缓存，热路径用） */
+BOOL MMFontShouldReplaceFont(CTFontRef font);
 
 /* 日志（MMFontVerbose=YES 时才输出） */
 void MMLog(NSString *fmt, ...);
