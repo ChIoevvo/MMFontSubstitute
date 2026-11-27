@@ -1,0 +1,43 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Toolchain (macOS + latest iPhoneOS SDK)
+        run: |
+          sw_vers
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          xcrun --sdk iphoneos --show-sdk-path
+
+      - name: Install packaging tools
+        run: |
+          brew install dpkg xz
+          brew install ldid || true
+          (ldid -v || echo 'no ldid, fallback to codesign')
+          dpkg-deb --version | head -1
+
+      - name: Build
+        run: bash scripts/build.sh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MMFontSubstitute
+          path: out/*
+          if-no-files-found: error
+          retention-days: 90
